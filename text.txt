@@ -1,0 +1,49 @@
+@'
+# delete_by_author_year.ps1
+param(
+    [string]$Author,
+    [string]$Year
+)
+
+$BaseDir = "C:\ScientificLibrary"
+$ArticlesDir = "$BaseDir\articles"
+$IndexDir = "$BaseDir\index"
+
+Write-Host "Searching for author: $Author, year: $Year"
+Write-Host ""
+
+Get-ChildItem $ArticlesDir -Directory | ForEach-Object {
+    $articlePath = $_.FullName
+    $articleName = $_.Name
+    
+    $authorFile = "$articlePath\author.txt"
+    $yearFile = "$articlePath\year.txt"
+    
+    if ((Test-Path $authorFile) -and (Test-Path $yearFile)) {
+        $actualAuthor = (Get-Content $authorFile).Trim()
+        $actualYear = (Get-Content $yearFile).Trim()
+        
+        if ($actualAuthor -eq $Author -and $actualYear -eq $Year) {
+            Write-Host "Found: $articleName"
+            
+            # Delete shortcuts
+            Get-ChildItem $IndexDir -Recurse -Filter *.lnk | ForEach-Object {
+                $shell = New-Object -ComObject WScript.Shell
+                $link = $shell.CreateShortcut($_.FullName)
+                if ($link.TargetPath -eq $articlePath) {
+                    Remove-Item $_.FullName -Force
+                    Write-Host "  Deleted link: $($_.Name)"
+                }
+                [System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null
+            }
+            
+            # Delete article folder
+            Remove-Item $articlePath -Recurse -Force
+            Write-Host "  Deleted folder: $articleName"
+            Write-Host ""
+        }
+    }
+}
+
+Write-Host "Done!"
+'@ | Out-File -FilePath "C:\ScientificLibrary\delete_by_author_year.ps1" -Encoding UTF8
